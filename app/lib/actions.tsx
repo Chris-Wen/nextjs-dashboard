@@ -3,6 +3,7 @@ import { sql } from '@vercel/postgres';
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import Decimal from 'decimal.js';
 
 // const FormSchema = z.object({
 //     id: z.string(),
@@ -36,7 +37,7 @@ export type State = {
   message?: string | null;
 };
 
-export async function createInvoice(formData: FormData) {
+export async function createInvoice(prevState: State, formData: FormData) {
   // Validate form fields using Zod
   const validatedFields = CreateInvoice.safeParse({
     customerId: formData.get('customerId'),
@@ -54,7 +55,7 @@ export async function createInvoice(formData: FormData) {
 
      // Prepare data for insertion into the database
     const { customerId, amount, status } = validatedFields.data;
-    const amountInCents = amount * 100;
+    const amountInCents = new Decimal(amount).mul(100).toNumber();
     const date = new Date().toISOString().split('T')[0];
 
     // 执行sql
@@ -85,18 +86,22 @@ export async function updateInvoice(id: string, formData: FormData) {
         status: formData.get('status'),
       });
      
-      const amountInCents = amount * 100;
-     
+      const amountInCents = new Decimal(amount).mul(100).toNumber();
+
       try {
         await sql`
             UPDATE invoices
             SET customer_id = ${customerId}, amount = ${amountInCents}, status = ${status}
             WHERE id = ${id}
           `;
+          console.log(1)
       } catch (error) {
+        console.log(2)
         return { message: 'Database Error: Failed to Update Invoice.' };
       }
 
+      console.log(3);
+      
       revalidatePath('/dashboard/invoices');
       redirect('/dashboard/invoices');
 }
